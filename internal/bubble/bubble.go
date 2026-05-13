@@ -76,9 +76,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	str := strings.Builder{}
 	playerIdx := m.Snapshot.PlayerPos.ToIdx(int8(m.Snapshot.Width))
+	entities := make(map[int]messages.RenderableEntity)
+
+	for _,e := range m.Snapshot.Entities {
+		idx := e.Position.ToIdx(int8(m.Snapshot.Width))
+		entities[idx] = e
+	}
+
 	for i := range len(m.Snapshot.Tiles) {
+		entity, ok := entities[i];
 		if i == playerIdx {
 			str.WriteString(playerStyle.Render("@"))
+		} else if ok {
+			// TODO: We will deal with lipgloss rendering when we have
+			// ironed out entities implementation
+			str.WriteRune(entity.Render.Symbol)
 		} else {
 			tile := Symbols[m.Snapshot.Tiles[i]]
 			str.WriteString(tile.Style.Render(string(tile.Symbol)))
