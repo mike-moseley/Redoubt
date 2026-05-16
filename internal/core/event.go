@@ -1,28 +1,37 @@
 package core
 
-import "github.com/google/uuid"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 type Event interface {
-	isEvent()
+	IsEvent()
 }
 
 type TickEvent struct {
 }
 
-func (t TickEvent) isEvent() {
+func (t TickEvent) IsEvent() {
 }
 
 type ConnectEvent struct {
 	Session *Session
 }
 
-func (c ConnectEvent) isEvent() {
+func (c ConnectEvent) IsEvent() {
 }
 
 type DisconnectEvent struct {
 	SessionID uuid.UUID
 }
 
-func (d DisconnectEvent) isEvent() {
+func (d DisconnectEvent) IsEvent() {
 
+}
+
+type CommandEnvelope struct {
+	Type string
+	Payload json.RawMessage
 }

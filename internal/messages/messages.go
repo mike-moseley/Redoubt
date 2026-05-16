@@ -1,15 +1,11 @@
 package messages
 
-import "github.com/mike-moseley/goAdvBuilder/internal/core"
 
-type RenderableEntity struct {
-	Position core.Position
-	Render core.Renderable
-}
+import "github.com/mike-moseley/goAdvBuilder/internal/core"
 
 type FOVSnapshot struct {
 	Tiles []core.TileType
 	Width uint8
-	Entities []RenderableEntity
+	Entities []core.RenderableEntity
 	PlayerPos core.Position
 }

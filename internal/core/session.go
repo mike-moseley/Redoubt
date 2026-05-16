@@ -18,4 +18,5 @@ type Player struct {
 	Name string
 	Location *Position
 	WorldLocation *Position
+	Vision uint8
 }

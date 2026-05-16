@@ -3,6 +3,7 @@ package core
 type TileType int
 
 const (
-	Plain TileType = iota
+	Unseen TileType = iota
+	Plain
 	Tree
 )

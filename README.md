@@ -90,3 +90,4 @@ Domain packages (`world`, `entity`, `combat`, `city`) import `core` only — no 
 - **FOV-only snapshots**: server sends only what each player can see, row-major tile array + entity list
 - **Definition/instance split**: static game data in TOML, dynamic world state in ECS
 - **Two-binary architecture**: server is headless; Bubble Tea runs only on the client
+- **JSON wire format**: used for client-server communication to support non-Go clients in the future. A planned learning exercise is to replace this with a custom binary encoding protocol.

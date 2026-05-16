@@ -1,5 +1,8 @@
 package world
-import "github.com/mike-moseley/goAdvBuilder/internal/core"
+
+import (
+	"github.com/mike-moseley/goAdvBuilder/internal/core"
+)
 
 type WorldCell struct {
 	TypeID string
