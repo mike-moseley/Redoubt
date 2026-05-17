@@ -31,8 +31,8 @@ func handleConn(conn net.Conn, inbound chan core.Event) {
 		Outbound: make(chan any, 100),
 		Player: &core.Player{
 			Name:          connectMsg.Name,
-			Location:      &core.Position{X: 64, Y: 64},
-			WorldLocation: &core.Position{X: 0, Y: 0},
+			Location:      &core.Position{X: 64, Y: 64, Z: 0},
+			WorldLocation: &core.Position{X: 0, Y: 0, Z: 0},
 			Vision:        3,
 		},
 		EntityID: 0,
@@ -59,6 +59,7 @@ func handleConn(conn net.Conn, inbound chan core.Event) {
 			log.Printf("Connection error in listener.go: %v\n", err)
 			return
 		}
+		clientEnv.Session = &session
 		inbound <- clientEnv
 	}
 }

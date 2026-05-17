@@ -20,8 +20,8 @@ type TileSymbol struct {
 
 var Symbols = map[core.TileType]TileSymbol{
 	core.Unseen: {'~', lipgloss.NewStyle().Foreground(lipgloss.Color("#ddddff"))},
-	core.Plain:  {'.', lipgloss.NewStyle().Foreground(lipgloss.Color("#88ff88"))},
-	core.Tree:   {'#', lipgloss.NewStyle().Foreground(lipgloss.Color("#22aa22"))},
+	core.Grass:  {'.', lipgloss.NewStyle().Foreground(lipgloss.Color("#88ff88"))},
+	// core.Tree:   {'#', lipgloss.NewStyle().Foreground(lipgloss.Color("#22aa22"))},
 }
 
 var playerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
@@ -43,7 +43,7 @@ type Model struct {
 
 func NewModel(conn net.Conn, encoder *json.Encoder) Model {
 	blank := make([]core.TileType, 128*128)
-	blank[15] = core.Tree
+	// blank[15] = core.Tree
 	staleMap := make([]core.TileType, 128*128)
 	ti := textinput.New()
 	ti.Placeholder = "Press space to chat"
@@ -53,9 +53,9 @@ func NewModel(conn net.Conn, encoder *json.Encoder) Model {
 		Snapshot: protocol.FOVSnapshot{
 			Tiles:     blank,
 			Width:     128,
-			Height:    128,
+			Length:    128,
 			Entities:  []core.RenderableEntity{},
-			PlayerPos: core.Position{X: 64, Y: 64},
+			PlayerPos: core.Position{X: 64, Y: 64, Z: 0},
 		},
 		StaleMap:     staleMap,
 		Conn:         conn,

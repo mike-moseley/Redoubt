@@ -19,7 +19,7 @@ func (m Model) renderGameView(gameviewHeight, gameviewWidth int, entities map[in
 			entity, ok := entities[mapIdx]
 			if mapX >= int(m.Snapshot.Width) || mapX < 0 {
 				str.WriteString(staleStyle.Render("0"))
-			} else if mapY >= int(m.Snapshot.Height) || mapY < 0 {
+			} else if mapY >= int(m.Snapshot.Length) || mapY < 0 {
 				str.WriteString(staleStyle.Render("0"))
 			} else if mapX == int(playerX) && mapY == int(playerY) {
 				str.WriteString(playerStyle.Render("@"))

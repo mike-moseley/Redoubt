@@ -9,7 +9,7 @@ import (
 type FOVSnapshot struct {
 	Tiles     []core.TileType
 	Width     uint8
-	Height    uint8
+	Length    uint8
 	Entities  []core.RenderableEntity
 	PlayerPos core.Position
 }

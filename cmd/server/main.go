@@ -16,20 +16,28 @@ func main() {
 	store := core.NewStore()
 	tiles := make([]core.TileType, 128*128)
 	for i := range tiles {
-		tiles[i] = core.Plain
+		tiles[i] = core.Grass
 	}
-	localMap := world.LocalMap{
+	chunks := make(map[core.Position]map[int]world.LocalMap, 128)
+	globalMap := world.GlobalMap {
+		Chunks: chunks,
+	}
+	localMap := make(map[int]world.LocalMap, 128)
+	area := world.LocalMap{
 		Map:    tiles,
 		Width:  128,
-		Height: 128,
+		Length: 128,
 	}
+	localMap[0] = area
+	globalMap.Chunks[core.Position{X: 0, Y: 0}] = localMap
 	inbound := make(chan core.Event)
 	pendingMoves := make(map[uuid.UUID]protocol.MoveMessage)
-	go gameloop(store, localMap, inbound, pendingMoves)
+	log.Println("Server starting")
+	go gameloop(store, globalMap, inbound, pendingMoves)
 	netcode.Listen("0.0.0.0:9000", inbound)
 }
 
-func gameloop(store core.Store, localMap world.LocalMap, inbound chan core.Event, pendingMoves map[uuid.UUID]protocol.MoveMessage) {
+func gameloop(store core.Store, globalMap world.GlobalMap, inbound chan core.Event, pendingMoves map[uuid.UUID]protocol.MoveMessage) {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	go func() {
 		for range ticker.C {
@@ -43,20 +51,24 @@ func gameloop(store core.Store, localMap world.LocalMap, inbound chan core.Event
 		case core.TickEvent:
 			for _, session := range sessions {
 				// playerPos := session.Player.Location
+				player := session.Player
+				playerChunk := globalMap.Chunks[*player.WorldLocation]
+				playerLocalMap := playerChunk[player.Location.Z]
+
 				moveEvent, ok := pendingMoves[session.ID]
 				if ok {
-					newPos := session.Player.Location.AddPosition(moveEvent.Delta)
+					newPos := player.Location.AddPosition(moveEvent.Delta)
 					session.Player.Location = &newPos
 					store.LocalPosition[core.EntityID(session.EntityID)] = newPos
 					delete(pendingMoves, session.ID)
 				}
-				tiles, renderableEntities := world.ComputeFOV(&store, &localMap, *session.Player.Location, int(session.Player.Vision))
+				tiles, renderableEntities := world.ComputeFOV(&store, &playerLocalMap, *player.Location, int(session.Player.Vision))
 				snapshot := protocol.FOVSnapshot{
 					Tiles:     tiles,
-					Width:     localMap.Width,
-					Height:    localMap.Height,
+					Width:     playerLocalMap.Width,
+					Length:    playerLocalMap.Length,
 					Entities:  renderableEntities,
-					PlayerPos: *session.Player.Location,
+					PlayerPos: *player.Location,
 				}
 				servEnv := prepareFOVMessage(snapshot)
 				session.Outbound <- servEnv
@@ -94,7 +106,7 @@ func gameloop(store core.Store, localMap world.LocalMap, inbound chan core.Event
 				if err != nil {
 					log.Printf("Error unmarshalling move data: %v", err)
 				}
-				if e.Session.Player.Location.CanMove(move.Delta.X, move.Delta.Y, localMap.Width, localMap.Height) {
+				if e.Session.Player.Location.CanMove(move.Delta) {
 					pendingMoves[e.Session.ID] = move
 				}
 			case protocol.TypeChatMessage:
