@@ -2,15 +2,15 @@ package bubble
 
 import (
 	"encoding/json"
-	"log"
 	"net"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/mike-moseley/goAdvBuilder/internal/commands"
 	"github.com/mike-moseley/goAdvBuilder/internal/core"
-	"github.com/mike-moseley/goAdvBuilder/internal/messages"
+	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
 )
 
 type TileSymbol struct {
@@ -19,160 +19,158 @@ type TileSymbol struct {
 }
 
 var Symbols = map[core.TileType]TileSymbol{
-	core.Plain: {'.', lipgloss.NewStyle().Foreground(lipgloss.Color("#88ff88"))},
-	core.Tree:  {'#', lipgloss.NewStyle().Foreground(lipgloss.Color("#22aa22"))},
+	core.Unseen: {'~', lipgloss.NewStyle().Foreground(lipgloss.Color("#ddddff"))},
+	core.Plain:  {'.', lipgloss.NewStyle().Foreground(lipgloss.Color("#88ff88"))},
+	core.Tree:   {'#', lipgloss.NewStyle().Foreground(lipgloss.Color("#22aa22"))},
 }
 
 var playerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
 var staleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#4a0a6b"))
 
 type Model struct {
-	Snapshot messages.FOVSnapshot
-	StaleMap []core.TileType
-	Conn     net.Conn
+	Mode         GameMode
+	Snapshot     protocol.FOVSnapshot
+	StaleMap     []core.TileType
+	Conn         net.Conn
+	Encoder      *json.Encoder
+	Decoder      *json.Decoder
+	ChatBuffer   []string
+	ChatInput    textinput.Model
+	ChatViewport viewport.Model
+	Height       int
+	Width        int
 }
 
-func NewModel(conn net.Conn) Model {
-	blank := make([]core.TileType, 256)
+func NewModel(conn net.Conn, encoder *json.Encoder) Model {
+	blank := make([]core.TileType, 128*128)
 	blank[15] = core.Tree
-	staleMap := make([]core.TileType, 256)
+	staleMap := make([]core.TileType, 128*128)
+	ti := textinput.New()
+	ti.Placeholder = "Press space to chat"
+	ti.CharLimit = 256
 	return Model{
-		Snapshot: messages.FOVSnapshot{
+		Mode: ModeNormal,
+		Snapshot: protocol.FOVSnapshot{
 			Tiles:     blank,
-			Width:     5,
+			Width:     128,
+			Height:    128,
 			Entities:  []core.RenderableEntity{},
-			PlayerPos: core.Position{X: 2, Y: 2},
+			PlayerPos: core.Position{X: 64, Y: 64},
 		},
-		StaleMap: staleMap,
-		Conn:     conn,
+		StaleMap:     staleMap,
+		Conn:         conn,
+		Decoder:      json.NewDecoder(conn),
+		Encoder:      encoder,
+		ChatBuffer:   make([]string, 0, 128),
+		ChatInput:    ti,
+		ChatViewport: viewport.New(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return waitForSnapshot(m.Conn)
+	return waitForMessage(m.Decoder)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	playerPos := &m.Snapshot.PlayerPos
-	height := uint8(len(m.Snapshot.Tiles)) / m.Snapshot.Width
 	switch msg := msg.(type) {
 
-	case messages.FOVSnapshot:
+	case protocol.FOVSnapshot:
 		m.Snapshot = msg
+
 		for i, tile := range msg.Tiles {
 			if tile != core.Unseen {
 				m.StaleMap[i] = tile
 			}
 		}
-		return m, waitForSnapshot(m.Conn)
+		return m, waitForMessage(m.Decoder)
+
+	case protocol.Chat:
+		str := strings.Builder{}
+		name := msg.SourceName
+		contents := msg.Contents
+		str.WriteString(name)
+		str.WriteString(" says '")
+		str.WriteString(contents)
+		str.WriteString("'")
+
+		m.ChatBuffer = append(m.ChatBuffer, str.String())
+		fullstr := strings.Join(m.ChatBuffer, "\n")
+		m.ChatViewport.SetContent(fullstr)
+		m.ChatViewport.GotoBottom()
+
+		return m, waitForMessage(m.Decoder)
+
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height - 2
+		m.ChatInput.SetWidth(msg.Width)
+		m.ChatViewport.SetWidth(msg.Width)
+		m.ChatViewport.SetHeight((m.Height / 4))
+
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "up", "k":
-			if playerPos.CanMove(0, -1, m.Snapshot.Width, height) {
-				playerPos.Y--
-			}
-			delta := core.Position{X: 0, Y: -1}
-			cmdEnv := prepareMoveCommand(delta)
-			sendCommandEnvelope(m.Conn, cmdEnv)
-			// log.Printf("\nYou moved up one tile\n")
-		case "down", "j":
-			if playerPos.CanMove(0, 1, m.Snapshot.Width, height) {
-				playerPos.Y++
-			}
-			delta := core.Position{X: 0, Y: 1}
-			cmdEnv := prepareMoveCommand(delta)
-			sendCommandEnvelope(m.Conn, cmdEnv)
-			// log.Printf("\nYou moved down one tile\n")
-		case "left", "h":
-			if playerPos.CanMove(-1, 0, m.Snapshot.Width, height) {
-				playerPos.X--
-			}
-			delta := core.Position{X: -1, Y: 0}
-			cmdEnv := prepareMoveCommand(delta)
-			sendCommandEnvelope(m.Conn, cmdEnv)
-			// log.Printf("\nYou moved left one tile\n")
-		case "right", "l":
-			if playerPos.CanMove(1, 0, m.Snapshot.Width, height) {
-				playerPos.X++
-			}
-			delta := core.Position{X: 1, Y: 0}
-			cmdEnv := prepareMoveCommand(delta)
-			sendCommandEnvelope(m.Conn, cmdEnv)
-			// log.Printf("\nYou moved right one tile\n")
-		case "enter", "space":
+		switch m.Mode {
+		case ModeNormal:
+			return m.handleKeyNormal(msg)
+		case ModeChat:
+			return m.handleKeyChat(msg)
 		}
 	}
 	return m, nil
 }
 
 func (m Model) View() tea.View {
-	str := strings.Builder{}
-	playerIdx := m.Snapshot.PlayerPos.ToIdx(int8(m.Snapshot.Width))
+	if m.Width == 0 {
+		return tea.NewView("")
+	}
+
+	boxW := m.Width
+	tileCols := boxW - paneSideW
+	chatPaneH := paneTopH + m.ChatViewport.Height() + chatInputH + paneBottomH
+	tileRows := m.Height - chatPaneH - paneTopH - paneBottomH
+
 	entities := make(map[int]core.RenderableEntity)
 
 	for _, e := range m.Snapshot.Entities {
-		idx := e.Position.ToIdx(int8(m.Snapshot.Width))
+		idx := e.Position.ToIdx(m.Snapshot.Width)
 		entities[idx] = e
 	}
 
-	for i := range len(m.Snapshot.Tiles) {
-		entity, ok := entities[i]
-		entityStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(entity.Render.Color))
-		if i == playerIdx {
-			str.WriteString(playerStyle.Render("@"))
-		} else if ok {
-			str.WriteString(entityStyle.Render(string(entity.Render.Symbol)))
-		} else {
-			tile := Symbols[m.Snapshot.Tiles[i]]
-			stale := Symbols[m.StaleMap[i]]
-			if m.Snapshot.Tiles[i] == core.Unseen {
-				if m.StaleMap[i] != core.Unseen {
-					str.WriteString(staleStyle.Render(string(stale.Symbol)))
-				}
-			} else {
-				str.WriteString(tile.Style.Render(string(tile.Symbol)))
-			}
-		}
-		if (i+1)%int(m.Snapshot.Width) == 0 {
-			str.WriteRune('\n')
-		}
-	}
-	return tea.NewView(str.String())
-}
+	str := m.renderGameView(tileRows, tileCols, entities)
 
-func waitForSnapshot(conn net.Conn) tea.Cmd {
-	return func() tea.Msg {
-		var snapshot messages.FOVSnapshot
-		err := json.NewDecoder(conn).Decode(&snapshot)
-		if err != nil {
-			log.Printf("Error decoding FOVSnapshot in bubble.go: %v", err)
-		}
-		return snapshot
-	}
-}
+	activeColor := lipgloss.Color("#88ff88")
+	inactiveColor := lipgloss.Color("#cccccc")
 
-func sendCommandEnvelope(conn net.Conn, env core.CommandEnvelope) {
-	go func() {
-		encoder := json.NewEncoder(conn)
-		err := encoder.Encode(env)
-		if err != nil {
-			log.Printf("Error encoding command: %v", err)
-		}
-	}()
-}
+	gameColor := inactiveColor
+	chatColor := inactiveColor
 
-func prepareMoveCommand(delta core.Position) core.CommandEnvelope {
-	move := commands.MoveEvent{
-		Delta: delta,
+	if m.Mode == ModeNormal {
+		gameColor = activeColor
+	} else {
+		chatColor = activeColor
 	}
-	jsonMove, err := json.Marshal(move)
-	if err != nil {
-		log.Printf("Error marshaling move data: %v", err)
-	}
-	return core.CommandEnvelope{
-		Type:    "move",
-		Payload: jsonMove,
-	}
+
+	gameView := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderTop(false).
+		BorderForeground(gameColor).
+		Width(boxW).
+		Height(tileRows + paneBottomH).
+		Render(strings.TrimRight(str, "\n"))
+	gmTitle := "─Surroundings"
+	gmTopBorder := lipgloss.NewStyle().Foreground(gameColor).Render("╭" + gmTitle + strings.Repeat("─", boxW-len(gmTitle)) + "╮")
+	gmPane := gmTopBorder + "\n" + gameView
+
+	chat := m.ChatViewport.View()
+	chat += "\n" + m.ChatInput.View()
+	chatRendered := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderTop(false).
+		BorderForeground(chatColor).
+		Width(boxW).
+		Height(m.ChatViewport.Height() + chatInputH + paneBottomH).
+		Render(chat)
+	chTitle := "─Chat"
+	chTopBorder := lipgloss.NewStyle().Foreground(chatColor).Render("╭" + chTitle + strings.Repeat("─", boxW-len(chTitle)) + "╮")
+	chPane := chTopBorder + "\n" + chatRendered
+	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, gmPane, chPane))
 }

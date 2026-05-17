@@ -7,11 +7,22 @@ import (
 	"net"
 
 	"github.com/google/uuid"
-	"github.com/mike-moseley/goAdvBuilder/internal/commands"
 	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
 )
 
 func handleConn(conn net.Conn, inbound chan core.Event) {
+	decoder := json.NewDecoder(conn)
+	var clientEnv protocol.ClientEnvelope
+	err := decoder.Decode(&clientEnv)
+	if err != nil {
+		log.Printf("Error decoding connect message: %v", err)
+	}
+	var connectMsg protocol.ConnectMessage
+	err = json.Unmarshal(clientEnv.Payload, &connectMsg)
+	if err != nil {
+		log.Printf("Error unmarshaling connect message: %v", err)
+	}
 
 	// TODO: Handle auth
 	session := core.Session{
@@ -19,8 +30,8 @@ func handleConn(conn net.Conn, inbound chan core.Event) {
 		Conn:     conn,
 		Outbound: make(chan any, 100),
 		Player: &core.Player{
-			Name:          "dinger",
-			Location:      &core.Position{X: 0, Y: 0},
+			Name:          connectMsg.Name,
+			Location:      &core.Position{X: 64, Y: 64},
 			WorldLocation: &core.Position{X: 0, Y: 0},
 			Vision:        3,
 		},
@@ -37,10 +48,8 @@ func handleConn(conn net.Conn, inbound chan core.Event) {
 			}
 		}
 	}()
-	decoder := json.NewDecoder(conn)
 	for {
-		var cmdEnv core.CommandEnvelope
-		err := decoder.Decode(&cmdEnv)
+		err := decoder.Decode(&clientEnv)
 		if err == io.EOF {
 			inbound <- core.DisconnectEvent{SessionID: session.ID}
 			log.Printf("%s has disconnected", session.Player.Name)
@@ -50,10 +59,7 @@ func handleConn(conn net.Conn, inbound chan core.Event) {
 			log.Printf("Connection error in listener.go: %v\n", err)
 			return
 		}
-		var move commands.MoveEvent
-		json.Unmarshal(cmdEnv.Payload, &move)
-		move.Session = &session
-		inbound <- move
+		inbound <- clientEnv
 	}
 }
 

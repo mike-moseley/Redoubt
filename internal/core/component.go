@@ -5,8 +5,11 @@ type Position struct {
 	Y int8
 }
 
-func (p Position) ToIdx(width int8) int {
-	return int(p.X + p.Y*width)
+func (p Position) ToIdx(width uint8) int {
+	x := int(p.X)
+	y := int(p.Y)
+	w := int(width)
+	return x + y*w
 }
 
 func (p Position) CanMove(dx, dy int8, width uint8, height uint8) bool {

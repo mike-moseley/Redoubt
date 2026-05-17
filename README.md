@@ -10,7 +10,7 @@ Two binaries: a headless game server and a terminal client. The server owns all 
 
 ### Server
 
-Runs a tick-based simulation at 4 ticks per second (250ms intervals). Each tick:
+Runs a tick-based simulation at ~6.7 ticks per second (150ms intervals). Each tick:
 
 1. Drains all player commands queued since the last tick (one command per player per tick)
 2. Resolves commands and advances time-driven systems (combat, construction, NPC movement)
@@ -18,11 +18,15 @@ Runs a tick-based simulation at 4 ticks per second (250ms intervals). Each tick:
 
 Concurrency is handled via channels — a single game loop goroutine owns all world state. Connected clients each run in their own goroutine and communicate with the game loop through a shared inbound channel. The game loop writes responses to per-session outbound channels. No mutexes needed — only the game loop goroutine ever touches the ECS store.
 
-Three event types flow through the inbound channel: player commands, tick events, and connection/disconnection events. All implement a marker interface so the channel is typed and the game loop dispatches via type switch.
+Four event types flow through the inbound channel: tick events, connect/disconnect events, and `protocol.ClientEnvelope` (wrapping all player commands). All implement a marker interface so the channel is typed and the game loop dispatches via type switch. Inside a `ClientEnvelope` case, an inner switch on `Type` handles `TypeMove` and `TypeChatMessage`.
 
 ### Client
 
 Runs a Bubble Tea TUI. Holds a local snapshot of the last FOV update received from the server. Key presses are translated to intents and sent to the server — the client never mutates game state directly. Bubble Tea handles terminal diffing internally so the client re-renders the full snapshot each frame.
+
+Two panes rendered with Lip Gloss borders: a game viewport (map tiles + entities) and a chat area (`bubbles/viewport` for scroll history + `bubbles/textinput` for input). Active pane is highlighted green, inactive gray. Modal input: Space enters chat mode, Esc exits.
+
+On connect, the client immediately sends a `ConnectMessage` with the player name before the normal message loop begins. Flags: `--name`, `--address`.
 
 ### ECS (Entity Component System)
 
@@ -36,12 +40,12 @@ Entity types (mobs, buildings, items) are data-driven and loaded from TOML files
 
 ### FOV Snapshots
 
-Each tick the server computes what each player can see and sends a `messages.FOVSnapshot` containing:
+Each tick the server computes what each player can see and sends a `protocol.FOVSnapshot` containing:
 - Tiles — `[]TileType` in row-major order (`index = y * width + x`), plus viewport width/height
 - Entities — `[]RenderableEntity` pairing `Position` and `Renderable` for each visible entity
 - Player position — viewport anchor
 
-The client sends a `LookEvent` for full entity details on demand; the snapshot carries only enough to render (glyph, color, type ID string).
+The client maintains a `StaleMap` — previously seen tiles rendered in a dim color when they fall outside the current FOV. Full snapshot every tick; no dirty-cell tracking needed since Bubble Tea diffs terminal output internally.
 
 ## Package Structure
 
@@ -52,14 +56,13 @@ cmd/
 
 internal/
   core/          # shared types: Event interface, Session, EntityID, TileType, ECS Store, components
-  net/           # TCP listener, per-connection goroutines, authentication
-  bubble/        # Bubble Tea model, keypress → intent dispatch
+  netcode/       # TCP listener, per-connection goroutines, ConnectMessage handshake
+  bubble/        # Bubble Tea model (bubble.go), key handlers (input.go), renderer (render.go), helpers (helpers.go), constants (consts.go)
   world/         # grid, tiles, FOV calculation
   entity/        # mob/NPC definitions and TOML loader
   combat/        # initiative queue, damage resolution, status effect definitions
   city/          # buildings, resources, construction queues, building definitions
-  commands/      # client→server event types: MoveEvent, AttackEvent, BuildEvent, LookEvent, etc.
-  messages/      # server→client message types: FOVSnapshot, CombatMessage, Notification, etc.
+  protocol/      # wire types: clientMessage.go, serverMessage.go, chat.go, consts.go
 
 data/
   mobs.toml
@@ -71,12 +74,11 @@ data/
 
 `core` imports nothing internal. All other packages import `core`. Additional dependencies:
 
-- `commands` → `core` (needs Session)
-- `messages` → `core` (needs TileType, Renderable, Position)
-- `net` → `core` (owns Session, handles auth)
-- `bubble` → `messages` (renders snapshots)
+- `protocol` → `core` (needs Session, Position, TileType, RenderableEntity)
+- `netcode` → `core`, `protocol`
+- `bubble` → `protocol`, `core`
 - `cmd/server` → everything
-- `cmd/client` → `bubble`, `messages`, `commands`
+- `cmd/client` → `bubble`, `protocol`, `core`
 
 Domain packages (`world`, `entity`, `combat`, `city`) import `core` only — no cross-dependencies between them. All cross-domain interaction happens through the game loop in `cmd/server`.
 

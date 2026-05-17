@@ -1,8 +1,6 @@
 package core
 
 import (
-	"encoding/json"
-
 	"github.com/google/uuid"
 )
 
@@ -29,9 +27,4 @@ type DisconnectEvent struct {
 
 func (d DisconnectEvent) IsEvent() {
 
-}
-
-type CommandEnvelope struct {
-	Type string
-	Payload json.RawMessage
 }
