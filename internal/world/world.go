@@ -8,43 +8,49 @@ import (
 
 type GlobalMap struct {
 	Chunks map[core.Position]map[int]LocalMap
+	ZMin      int
+	ZMax      int
 }
 
 type LocalMap struct {
 	Map []core.TileType
 	// HeightMap is an array of Z-levels;
 	// indices correspond to Map
-	HeightMap []int
 	Width     uint8
 	Length    uint8
 }
 
-func GenerateChunk(chunkPos core.Position, seed int64) map[int]LocalMap {
-	globalNoiseInstance := opensimplex.NewNormalized(seed)
-	globalNoise := globalNoiseInstance.Eval2(float64(chunkPos.X), float64(chunkPos.Y))
-	globalZ := int(math.Floor(globalNoise * 10))
-	localSeed := seed + int64(chunkPos.X)*31 + int64(chunkPos.Y)*37
-	localNoiseInstance := opensimplex.NewNormalized(localSeed)
+func GenerateChunk(chunkPos core.Position, seed int64) (chunk map[int]LocalMap, zMin, zMax int) {
+	noiseInstance := opensimplex.NewNormalized(seed)
+	zMin = math.MaxInt
+	zMax = math.MinInt
 
-	chunk := make(map[int]LocalMap)
-	tiles := make([]core.TileType, int(core.LOCAL_MAP_LENGTH)*int(core.LOCAL_MAP_WIDTH))
-	heightMap := make([]int, len(tiles))
+	chunk = make(map[int]LocalMap)
 
-	for i := range tiles {
-		tiles[i] = core.Grass
+	for i := range int(core.LOCAL_MAP_LENGTH) * int(core.LOCAL_MAP_WIDTH) {
 		localPos := core.IdxToPosition(i, core.LOCAL_MAP_WIDTH)
-		localNoise := localNoiseInstance.Eval2(float64(localPos.X), float64(localPos.Y))
-		heightMap[i] = int(math.Floor(localNoise * 3))
+		worldX := float64(chunkPos.X*int(core.LOCAL_MAP_WIDTH)+localPos.X) / 600.0
+		worldY := float64(chunkPos.Y*int(core.LOCAL_MAP_LENGTH)+localPos.Y) / 600.0
+		tileZ := int(math.Floor(noiseInstance.Eval2(worldX, worldY) * 30))
+		if tileZ > zMax {
+			zMax = tileZ
+		}
+		if tileZ < zMin {
+			zMin = tileZ
+		}
+
+		if _, ok := chunk[tileZ]; !ok {
+			newTiles := make([]core.TileType, int(core.LOCAL_MAP_LENGTH)*int(core.LOCAL_MAP_WIDTH))
+			chunk[tileZ] = LocalMap{
+				Map: newTiles,
+				Width: core.LOCAL_MAP_WIDTH,
+				Length: core.LOCAL_MAP_LENGTH,
+			}
+		}
+		lMap := chunk[tileZ]
+		lMap.Map[i] = core.Grass
+		chunk[tileZ] = lMap
 	}
 
-	localMap := LocalMap{
-		Map:       tiles,
-		HeightMap: heightMap,
-		Width:     core.LOCAL_MAP_WIDTH,
-		Length:    core.LOCAL_MAP_LENGTH,
-	}
-
-	chunk[globalZ] = localMap
-
-	return chunk
+	return chunk, zMin, zMax
 }
