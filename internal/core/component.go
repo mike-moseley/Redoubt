@@ -6,7 +6,7 @@ type Position struct {
 	Z int
 }
 
-func (p Position) ToIdx(width uint8) int {
+func (p Position) ToIdx(width int) int {
 	x := p.X
 	y := p.Y
 	w := int(width)
@@ -22,6 +22,21 @@ func (p Position) CanMove(delta Position) bool {
 	}
 
 	if (newY >= int(LOCAL_MAP_LENGTH)) || (newY < 0) {
+		return false
+	}
+
+	return true
+}
+
+func (p Position) CanMoveBounded(delta Position, width, length int) bool {
+	newX := p.X + delta.X
+	newY := p.Y + delta.Y
+
+	if (newX >= width) || (newX < 0) {
+		return false
+	}
+
+	if (newY >= length) || (newY < 0) {
 		return false
 	}
 
@@ -49,8 +64,8 @@ func (p Position) AddPosition(other Position) Position {
 	}
 }
 
-func IdxToPosition(idx int, width uint8) Position {
-	widthInt := int(width)
+func IdxToPosition(idx, width int) Position {
+	widthInt := width
 	y := idx / widthInt
 	x := idx % widthInt
 	return Position{

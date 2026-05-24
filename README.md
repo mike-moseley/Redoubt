@@ -34,6 +34,14 @@ World state is managed via ECS. Entities are `uint64` IDs. Components are plain 
 
 Initial components: `Position` (int32 x/y), `Renderable` (rune, color string, type ID), `Name` (string).
 
+### World Generation
+
+The world is a `GlobalMap` — a `map[core.Position]map[int]LocalMap` where the outer key is the chunk coordinate and the inner key is the Z level. Each `LocalMap` is a horizontal slice of tiles at that elevation.
+
+`GenerateChunk` uses opensimplex noise combined with a radial island falloff (`noise*0.3 + falloff*0.7`) to produce smooth, continuous terrain across chunk boundaries. The Z level per tile is derived from the combined value scaled to a discrete range. Ocean, biome assignment, moisture, and rivers are not yet implemented.
+
+`cmd/worldgen` is a standalone tool that generates PNG heightmaps for visual tuning without running the full server.
+
 ### Data
 
 Entity types (mobs, buildings, items) are data-driven and loaded from TOML files at server startup. Each entity type has a **definition** (static, loaded once, shared) and **instances** (dynamic ECS components, mutate during play). Definitions live in `data/`. A shared TOML loader utility in `core` handles file decoding; each domain package owns its own definition types.
@@ -53,12 +61,13 @@ The client maintains a `StaleMap` — previously seen tiles rendered in a dim co
 cmd/
   server/        # server entry point, game loop, command dispatch
   client/        # client entry point
+  worldgen/      # standalone PNG heightmap visualizer for tuning world generation
 
 internal/
   core/          # shared types: Event interface, Session, EntityID, TileType, ECS Store, components
   netcode/       # TCP listener, per-connection goroutines, ConnectMessage handshake
   bubble/        # Bubble Tea model (bubble.go), key handlers (input.go), renderer (render.go), helpers (helpers.go), constants (consts.go)
-  world/         # grid, tiles, FOV calculation
+  world/         # GlobalMap, LocalMap, GenerateChunk (noise + island falloff), FOV calculation
   entity/        # mob/NPC definitions and TOML loader
   combat/        # initiative queue, damage resolution, status effect definitions
   city/          # buildings, resources, construction queues, building definitions

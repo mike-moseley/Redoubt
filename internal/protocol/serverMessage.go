@@ -8,8 +8,8 @@ import (
 
 type FOVSnapshot struct {
 	Tiles     []core.TileType
-	Width     uint8
-	Length    uint8
+	Width     int
+	Length    int
 	Entities  []core.RenderableEntity
 	PlayerPos core.Position
 }
