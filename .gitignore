@@ -1,0 +1,21 @@
+# Build artifacts
+/bin/
+*.exe
+*.test
+
+# Generated worldgen visualizer output
+/images/
+
+# Env / secrets
+.env
+*.env
+
+# Go tooling
+/vendor/
+*.out
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
