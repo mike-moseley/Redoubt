@@ -1,7 +1,7 @@
 package world
 
 import (
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/redoubt/internal/core"
 )
 
 func ComputeFOV(store *core.Store, localMap *LocalMap, playerPos core.Position, radius int) ([]core.TileType, []core.RenderableEntity) {

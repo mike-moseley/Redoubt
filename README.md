@@ -1,4 +1,4 @@
-# goAdvBuilder
+# Redoubt
 
 A multiplayer terminal roguelike/city-builder with MUD-like combat, written in Go.
 

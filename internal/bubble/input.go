@@ -2,7 +2,7 @@ package bubble
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/redoubt/internal/core"
 )
 
 func (m Model) handleKeyNormal(msg tea.KeyPressMsg) (Model, tea.Cmd) {

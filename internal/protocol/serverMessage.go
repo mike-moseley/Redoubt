@@ -3,7 +3,7 @@ package protocol
 import (
 	"encoding/json"
 
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/redoubt/internal/core"
 )
 
 type FOVSnapshot struct {

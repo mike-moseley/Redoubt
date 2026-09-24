@@ -1,7 +1,7 @@
 package world
 
 import (
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/redoubt/internal/core"
 )
 
 type WorldCell struct {

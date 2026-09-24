@@ -1,4 +1,4 @@
-module github.com/mike-moseley/goAdvBuilder
+module github.com/mike-moseley/redoubt
 
 go 1.26.2
 
