@@ -1,5 +1,7 @@
 # Redoubt
 
+[![CI](https://github.com/mike-moseley/Redoubt/actions/workflows/ci.yml/badge.svg)](https://github.com/mike-moseley/Redoubt/actions/workflows/ci.yml)
+
 A multiplayer terminal roguelike/city-builder with MUD-like combat, written in Go.
 
 ## Overview
