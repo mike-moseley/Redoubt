@@ -7,8 +7,8 @@ import (
 	"net"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/mike-moseley/goAdvBuilder/internal/bubble"
-	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
+	"github.com/mike-moseley/redoubt/internal/bubble"
+	"github.com/mike-moseley/redoubt/internal/protocol"
 )
 
 func main() {

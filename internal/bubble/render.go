@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
+	"github.com/mike-moseley/redoubt/internal/core"
 )
 
 func (m Model) renderGameView(gameviewHeight, gameviewWidth int, entities map[int]core.RenderableEntity) string {

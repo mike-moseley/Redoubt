@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
-	"github.com/mike-moseley/goAdvBuilder/internal/netcode"
-	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
-	"github.com/mike-moseley/goAdvBuilder/internal/world"
+	"github.com/mike-moseley/redoubt/internal/core"
+	"github.com/mike-moseley/redoubt/internal/netcode"
+	"github.com/mike-moseley/redoubt/internal/protocol"
+	"github.com/mike-moseley/redoubt/internal/world"
 )
 
 func main() {

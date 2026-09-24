@@ -5,8 +5,8 @@ import (
 	"log"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
-	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
+	"github.com/mike-moseley/redoubt/internal/core"
+	"github.com/mike-moseley/redoubt/internal/protocol"
 )
 
 func waitForMessage(decoder *json.Decoder) tea.Cmd {

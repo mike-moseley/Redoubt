@@ -7,8 +7,8 @@ import (
 	"net"
 
 	"github.com/google/uuid"
-	"github.com/mike-moseley/goAdvBuilder/internal/core"
-	"github.com/mike-moseley/goAdvBuilder/internal/protocol"
+	"github.com/mike-moseley/redoubt/internal/core"
+	"github.com/mike-moseley/redoubt/internal/protocol"
 )
 
 func handleConn(conn net.Conn, inbound chan core.Event) {
