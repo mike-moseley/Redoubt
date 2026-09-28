@@ -3,7 +3,7 @@
 Postgres backs the accounts service (`cmd/accounts`, in progress): player
 accounts, their character, and the stats that feed the leaderboard. The game server never
 talks to Postgres directly. Schema changes are [goose](https://github.com/pressly/goose)
-migrations in `migrations/`.
+migrations in `sql/migrations/`.
 
 ## Schema
 
@@ -13,7 +13,10 @@ accounts                         characters
 id             uuid PK           id             uuid PK
 username       text              account_id     uuid UNIQUE -> accounts.id (ON DELETE CASCADE)
 password_hash  text              name           text
-created_at     timestamptz       level, xp, gold, deaths
+created_at     timestamptz       level          int
+                                 xp             bigint
+                                 gold           bigint
+                                 deaths         int
                                  xp_updated_at  timestamptz
                                  created_at     timestamptz
 ```
@@ -102,9 +105,10 @@ every row on every request. The fix is to stop sorting altogether.
 ### The fix
 
 - **00006: remove `rank` from the view.** The view now returns plain rows,
-  including `characters.id`, so callers can order on the full key. Callers
-  compute rank themselves, in the same query as their `ORDER BY ... LIMIT`,
-  where the planner can see both together.
+  including `characters.id`, so callers can order on the full key. Rank is
+  just a row's position in the ordered result, so the application computes it
+  (`offset + i + 1`). That works the same on every keyset page, where a
+  `ROW_NUMBER()` in the query would restart at 1.
 - **00007: add an index in leaderboard order.**
   ```sql
   CREATE INDEX characters_leaderboard_idx
@@ -115,7 +119,8 @@ every row on every request. The fix is to stop sorting altogether.
   not work. All three columns are `NOT NULL`, so NULL ordering doesn't need to
   match.
 
-The caller's query:
+The benchmark query still computes rank in SQL, to show that even a
+SQL-side rank is cheap once it sits in the same query as `ORDER BY ... LIMIT`:
 
 ```sql
 SELECT ROW_NUMBER() OVER (ORDER BY xp DESC, xp_updated_at, id) AS rank, *
@@ -163,18 +168,18 @@ The first measurement, taken cold, was 323 ms.
 
 ```sh
 # schema
-goose -dir migrations postgres "$DATABASE_URL" up
+goose -dir sql/migrations postgres "$DATABASE_URL" up
 
 # 500k accounts + characters with random xp and xp_updated_at (TRUNCATEs first)
-psql "$DATABASE_URL" -f scripts/seed.sql
+psql "$DATABASE_URL" -f sql/scripts/seed.sql
 ANALYZE;  # in psql, so the planner has fresh statistics
 
 # before: roll back to the ranked view with no index
-goose -dir migrations postgres "$DATABASE_URL" down-to 5
+goose -dir sql/migrations postgres "$DATABASE_URL" down-to 5
 #   EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM leaderboard ORDER BY rank LIMIT 20;
 
 # after
-goose -dir migrations postgres "$DATABASE_URL" up
+goose -dir sql/migrations postgres "$DATABASE_URL" up
 #   EXPLAIN (ANALYZE, BUFFERS)
 #   SELECT ROW_NUMBER() OVER (ORDER BY xp DESC, xp_updated_at, id) AS rank, *
 #   FROM leaderboard ORDER BY xp DESC, xp_updated_at, id LIMIT 20;
