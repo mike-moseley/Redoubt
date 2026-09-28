@@ -16,7 +16,7 @@ INSERT INTO characters (account_id, name)
 VALUES (
 	$1,
 	$2
-) RETURNING id, account_id, name, level, xp, gold, deaths, created_at, xp_updated_at
+) RETURNING id, account_id, name, xp, gold, deaths, created_at, xp_updated_at, level
 `
 
 type CreateCharacterParams struct {
@@ -31,18 +31,18 @@ func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams
 		&i.ID,
 		&i.AccountID,
 		&i.Name,
-		&i.Level,
 		&i.Xp,
 		&i.Gold,
 		&i.Deaths,
 		&i.CreatedAt,
 		&i.XpUpdatedAt,
+		&i.Level,
 	)
 	return i, err
 }
 
 const getCharacterByAccount = `-- name: GetCharacterByAccount :one
-SELECT id, account_id, name, level, xp, gold, deaths, created_at, xp_updated_at FROM characters WHERE account_id = $1
+SELECT id, account_id, name, xp, gold, deaths, created_at, xp_updated_at, level FROM characters WHERE account_id = $1
 `
 
 func (q *Queries) GetCharacterByAccount(ctx context.Context, accountID uuid.UUID) (Character, error) {
@@ -52,12 +52,12 @@ func (q *Queries) GetCharacterByAccount(ctx context.Context, accountID uuid.UUID
 		&i.ID,
 		&i.AccountID,
 		&i.Name,
-		&i.Level,
 		&i.Xp,
 		&i.Gold,
 		&i.Deaths,
 		&i.CreatedAt,
 		&i.XpUpdatedAt,
+		&i.Level,
 	)
 	return i, err
 }

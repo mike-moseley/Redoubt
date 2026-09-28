@@ -21,12 +21,12 @@ type Character struct {
 	ID          uuid.UUID
 	AccountID   uuid.UUID
 	Name        string
-	Level       int32
 	Xp          int64
 	Gold        int64
 	Deaths      int32
 	CreatedAt   time.Time
 	XpUpdatedAt time.Time
+	Level       int32
 }
 
 type Leaderboard struct {
