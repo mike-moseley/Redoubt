@@ -11,6 +11,34 @@ import (
 	"github.com/google/uuid"
 )
 
+const applyStats = `-- name: ApplyStats :one
+UPDATE characters
+	SET xp = xp + $1,
+	gold = gold + $2,
+	deaths = deaths + $3
+WHERE id = $4
+RETURNING level
+`
+
+type ApplyStatsParams struct {
+	XpDelta     int64
+	GoldDelta   int64
+	DeathsDelta int32
+	CharacterID uuid.UUID
+}
+
+func (q *Queries) ApplyStats(ctx context.Context, arg ApplyStatsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, applyStats,
+		arg.XpDelta,
+		arg.GoldDelta,
+		arg.DeathsDelta,
+		arg.CharacterID,
+	)
+	var level int32
+	err := row.Scan(&level)
+	return level, err
+}
+
 const createCharacter = `-- name: CreateCharacter :one
 INSERT INTO characters (account_id, name)
 VALUES (

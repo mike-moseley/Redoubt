@@ -19,6 +19,7 @@
 .idea/
 *.swp
 .DS_Store
+postgres-language-server.jsonc
 
 # Benchmarks
 bench/
