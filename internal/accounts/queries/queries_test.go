@@ -20,7 +20,6 @@ var pool *pgxpool.Pool
 const migrationsDir = "../../../sql/migrations/"
 
 func TestMain(m *testing.M) {
-
 	os.Exit(run(m))
 }
 
@@ -30,7 +29,7 @@ func run(m *testing.M) int {
 	defer testcontainers.TerminateContainer(ctr)
 
 	if err != nil {
-		log.Printf("Error start container: %v", err)
+		log.Printf("Error starting container: %v", err)
 		return 1
 	}
 
