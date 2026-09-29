@@ -84,6 +84,12 @@ data/
 
 Domain packages (`world`, `entity`, `combat`, `city`) import `core` only — no cross-dependencies between them. All cross-domain interaction happens through the game loop in `cmd/server`.
 
+## Database
+
+The accounts service stores accounts, characters, and leaderboard stats in Postgres, with schema managed as goose migrations in `sql/migrations/`. Integrity rules (case-insensitive unique names, length and non-negative checks, one character per account) are enforced by constraints in the database, and a trigger maintains the timestamp used to break XP ties.
+
+The leaderboard query was profiled with `EXPLAIN ANALYZE` against 500k seeded characters. Moving the rank calculation out of the view and adding an index in leaderboard order took a top-20 query from **241 ms to 0.08 ms** (warm): 20 index entries read instead of a full join and a sort that spilled to disk. See [docs/database.md](docs/database.md) for the plans and reasoning.
+
 ## Key Design Decisions
 
 - **Server-authoritative**: clients are views, not participants in simulation
