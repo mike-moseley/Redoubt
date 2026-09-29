@@ -9,10 +9,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/mike-moseley/redoubt/internal/accounts/queries"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/mike-moseley/redoubt/internal/accounts/queries"
 )
 
 var pool *pgxpool.Pool
@@ -57,7 +57,7 @@ func run(m *testing.M) int {
 		log.Printf("Error bringing up migrations: %v", err)
 		return 1
 	}
-	db.Close()
+	defer db.Close()
 
 	pool, err = pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestCaseInsensitive(t *testing.T) {
 	ctx := t.Context()
 	q := queries.New(pool)
 	row, err := q.CreateAccount(ctx, queries.CreateAccountParams{
-		Username: "mike",
+		Username:     "mike",
 		PasswordHash: "ver1table-smorg4sb0rd",
 	})
 	if err != nil {
