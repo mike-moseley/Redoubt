@@ -234,7 +234,7 @@ estimate says `rows=500000` for the index scan; the actual `rows=20` shows the
 ### Results
 
 500k characters, PostgreSQL 18.6, default settings (`shared_buffers` 128 MB,
-`work_mem` 4 MB), laptop. Each query ran three times before the measured run.
+`work_mem` 4 MB). Each query ran three times before the measured run.
 
 |                         | Before (00005)                     | After (00007)           |
 |-------------------------|------------------------------------|-------------------------|
