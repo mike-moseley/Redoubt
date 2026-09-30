@@ -6,11 +6,14 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/mike-moseley/redoubt/internal/accounts/queries"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -34,6 +37,22 @@ const (
 	oneCharacterPerAccount = "characters_account_id_key"
 )
 
+var nameLengthCases = []struct {
+	name  string
+	input string
+	ok    bool
+}{
+	{name: "surrounding spaces", input: " mike ", ok: false},
+	{name: "leading space", input: " mike", ok: false},
+	{name: "trailing space", input: "mike ", ok: false},
+	{name: "empty", input: "", ok: false},
+	{name: "spaces", input: "  ", ok: false},
+	{name: "long", input: strings.Repeat("m", 21), ok: false},
+	{name: "lower bound", input: "m", ok: true},
+	{name: "upper bound", input: strings.Repeat("m", 20), ok: true},
+	{name: "correct", input: "mike", ok: true},
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(run(m))
 }
@@ -44,6 +63,21 @@ func reset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error resetting db for tests: %v", err)
 	}
+}
+
+func createAccount(t *testing.T, username string) uuid.UUID {
+	t.Helper()
+	ctx := t.Context()
+	q := queries.New(pool)
+	row, err := q.CreateAccount(ctx, queries.CreateAccountParams{
+		Username:     username,
+		PasswordHash: "ver1table-smorg4sb0rd",
+	})
+	if err != nil {
+		t.Fatalf("Error creating account: %v", err)
+	}
+
+	return row.ID
 }
 
 func expectPgError(t *testing.T, err error, code string, constraint string) {

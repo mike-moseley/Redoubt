@@ -1,7 +1,6 @@
 package queries_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgerrcode"
@@ -51,23 +50,7 @@ func TestCreateAccountDuplicateUsernameDifferentCase(t *testing.T) {
 }
 
 func TestCreateAccountUsernameLength(t *testing.T) {
-	cases := []struct {
-		name  string
-		input string
-		ok    bool
-	}{
-		{name: "surrounding spaces", input: " mike ", ok: false},
-		{name: "leading space", input: " mike", ok: false},
-		{name: "trailing space", input: "mike ", ok: false},
-		{name: "empty", input: "", ok: false},
-		{name: "spaces", input: "  ", ok: false},
-		{name: "long", input: strings.Repeat("m", 21), ok: false},
-		{name: "lower bound", input: "m", ok: true},
-		{name: "upper bound", input: strings.Repeat("m", 20), ok: true},
-		{name: "correct", input: "mike", ok: true},
-	}
-
-	for _, tc := range cases {
+	for _, tc := range nameLengthCases {
 		t.Run(tc.name, func(t *testing.T) {
 			reset(t)
 			ctx := t.Context()
