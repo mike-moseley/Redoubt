@@ -70,4 +70,3 @@ func TestCreateAccountUsernameLength(t *testing.T) {
 		})
 	}
 }
-

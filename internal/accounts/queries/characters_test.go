@@ -52,3 +52,26 @@ func TestCreateCharacterNameLength(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDeleteCascades(t *testing.T) {
+	reset(t)
+	ctx := t.Context()
+	q := queries.New(pool)
+	id := createAccount(t, "mike")
+	ch, err := q.CreateCharacter(ctx, queries.CreateCharacterParams{AccountID: id, Name: "hero"})
+	if err != nil {
+		t.Fatalf("Error creating character: %v", err)
+	}
+	_, err = pool.Exec(ctx, "DELETE FROM accounts WHERE id = $1", id)
+	if err != nil {
+		t.Fatalf("Error deleting account: %v", err)
+	}
+	var n int
+	err = pool.QueryRow(ctx, "SELECT count(*) FROM characters WHERE id = $1", ch.ID).Scan(&n)
+	if err != nil {
+		t.Fatalf("Error querying row in characters: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("characters rows = %d, want 0", n)
+	}
+}
