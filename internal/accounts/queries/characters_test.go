@@ -1,6 +1,7 @@
 package queries_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/jackc/pgerrcode"
@@ -73,5 +74,50 @@ func TestAccountDeleteCascades(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("characters rows = %d, want 0", n)
+	}
+}
+
+func TestLevelThresholds(t *testing.T) {
+	levelCases := []struct {
+		xp    int64
+		level int32
+	}{
+		{xp: 0, level: 1},
+		{xp: 1438, level: 9},
+		{xp: 1439, level: 10},
+		{xp: 127000, level: 50},
+		{xp: 18088402, level: 99},
+		{xp: 18088403, level: 100},
+		{xp: 1 << 40, level: 100},
+	}
+
+	for _, tc := range levelCases {
+		t.Run(fmt.Sprintf("xp %d", tc.xp), func(t *testing.T) {
+			reset(t)
+			ctx := t.Context()
+			q := queries.New(pool)
+			id := createAccount(t, "mike")
+
+			ch, err := q.CreateCharacter(ctx, queries.CreateCharacterParams{AccountID: id, Name: "hero"})
+			if err != nil {
+				t.Fatalf("Error creating character: %v", err)
+			}
+			if ch.Level != 1 {
+				t.Fatalf("Character level incorrect: have %d, want 1", ch.Level)
+			}
+
+			level, err := q.ApplyStats(ctx, queries.ApplyStatsParams{
+				XpDelta:     tc.xp,
+				GoldDelta:   0,
+				DeathsDelta: 0,
+				CharacterID: ch.ID,
+			})
+			if err != nil {
+				t.Fatalf("Error applying stats: %v", err)
+			}
+			if level != tc.level {
+				t.Fatalf("Level mismatch; have %d, want %d", level, tc.level)
+			}
+		})
 	}
 }
