@@ -1,10 +1,13 @@
 package queries_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mike-moseley/redoubt/internal/accounts/queries"
 )
@@ -260,5 +263,21 @@ func TestApplyStatsXpUpdatedAt(t *testing.T) {
 
 	if !ch2.XpUpdatedAt.After(ch1.XpUpdatedAt) {
 		t.Fatalf("XpUpdatedAt = %v, want after %v", ch2.XpUpdatedAt, ch1.XpUpdatedAt)
+	}
+}
+
+func TestApplyStatsUnknownCharacterID(t *testing.T) {
+	reset(t)
+	ctx := t.Context()
+	q := queries.New(pool)
+
+	_, err := q.ApplyStats(ctx, queries.ApplyStatsParams{
+		XpDelta:     0,
+		GoldDelta:   0,
+		DeathsDelta: 0,
+		CharacterID: uuid.New(),
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("Have %v, expected 'pgx.ErrNoRows'", err)
 	}
 }
