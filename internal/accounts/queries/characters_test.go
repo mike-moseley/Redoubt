@@ -212,3 +212,53 @@ func TestApplyStatsGoldOverdraft(t *testing.T) {
 		t.Fatalf("row changed: \n got %+v\n want %+v", ch2, ch1)
 	}
 }
+
+func TestApplyStatsXpUpdatedAt(t *testing.T) {
+	reset(t)
+	ctx := t.Context()
+	q := queries.New(pool)
+	id := createAccount(t, "mike")
+
+	ch, err := q.CreateCharacter(ctx, queries.CreateCharacterParams{AccountID: id, Name: "hero"})
+	if err != nil {
+		t.Fatalf("Error creating character: %v", err)
+	}
+
+	_, err = q.ApplyStats(ctx, queries.ApplyStatsParams{
+		XpDelta:     0,
+		GoldDelta:   100,
+		DeathsDelta: 3,
+		CharacterID: ch.ID,
+	})
+	if err != nil {
+		t.Fatalf("Error applying stats: %v", err)
+	}
+
+	ch1, err := q.GetCharacterByAccount(ctx, ch.AccountID)
+	if err != nil {
+		t.Fatalf("Error getting character by account: %v", err)
+	}
+
+	_, err = q.ApplyStats(ctx, queries.ApplyStatsParams{
+		XpDelta:     100,
+		GoldDelta:   0,
+		DeathsDelta: 0,
+		CharacterID: ch.ID,
+	})
+	if err != nil {
+		t.Fatalf("Error applying stats: %v", err)
+	}
+
+	ch2, err := q.GetCharacterByAccount(ctx, ch.AccountID)
+	if err != nil {
+		t.Fatalf("Error getting character by account: %v", err)
+	}
+
+	if !ch1.XpUpdatedAt.Equal(ch.XpUpdatedAt) {
+		t.Fatalf("XpUpdatedAt mismatch: have %v, want %v", ch1.XpUpdatedAt, ch.XpUpdatedAt)
+	}
+
+	if !ch2.XpUpdatedAt.After(ch1.XpUpdatedAt) {
+		t.Fatalf("XpUpdatedAt = %v, want after %v", ch2.XpUpdatedAt, ch1.XpUpdatedAt)
+	}
+}
