@@ -116,6 +116,7 @@ func run(m *testing.M) int {
 		log.Printf("Error opening db: %v", err)
 		return 1
 	}
+	defer db.Close()
 
 	err = goose.SetDialect("postgres")
 	if err != nil {
@@ -128,7 +129,6 @@ func run(m *testing.M) int {
 		log.Printf("Error bringing up migrations: %v", err)
 		return 1
 	}
-	defer db.Close()
 
 	pool, err = pgxpool.New(ctx, dsn)
 	if err != nil {
