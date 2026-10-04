@@ -140,17 +140,44 @@ RETURNING level;
 
 ## Testing
 
-Integration tests in `internal/accounts/queries/queries_test.go` run against a
-real `postgres:18` container started by
-[testcontainers-go](https://golang.testcontainers.org/). `TestMain` starts one
-container for the package, applies the goose migrations, and shares a
-`pgxpool` with the tests. The behaviour under test is Postgres's own:
-constraints, the trigger, and the generated column. A mock would test none of
-it.
+Integration tests in `internal/accounts/queries/` run against a real
+`postgres:18` container started by
+[testcontainers-go](https://golang.testcontainers.org/). The behaviour under
+test is Postgres's own: constraints, the trigger, the generated column, and
+the keyset cursor. A mock would test none of it.
 
 ```sh
 go test ./internal/accounts/queries -v   # needs a running Docker daemon
 ```
+
+**Harness** (`main_test.go`). `TestMain` starts one container for the
+package, applies the goose migrations, and shares a `pgxpool`. Every test
+starts with `reset(t)` (`TRUNCATE accounts CASCADE`), so the tests don't
+depend on each other. They don't call `t.Parallel()`, because they share one
+database. Failures that should be rejected are checked by SQLSTATE code
+(`pgerrcode`) *and* constraint name through `expectPgError`. Checking only
+"some error" would let a test for duplicate names pass when the insert was
+really rejected by the length check.
+
+**Coverage.**
+
+| Area | What's checked |
+|---|---|
+| Accounts (`accounts_test.go`) | Case-insensitive lookup. A duplicate username in a different case is rejected by the `lower()` unique index. Length and trimming boundaries, table-driven: empty, only spaces, leading, trailing, 21 characters rejected; 1 and 20 characters accepted |
+| Characters (`characters_test.go`) | One character per account. Duplicate name in a different case (on two accounts, so only the name rule can fail). The same length table. Deleting an account removes the character row, checked by the character's own ID, so `ON DELETE SET NULL` would fail the test |
+| Level | Thresholds through `ApplyStats`: 1,438 → 9, 1,439 → 10, 18,088,403 → 100, `1<<40` → 100 (cap). The expected values are hard-coded, not recomputed in Go |
+| ApplyStats | Deltas add up, including spending down to exactly 0 gold. An overdraft of 1 gold is rejected and the whole row is unchanged (xp, deaths, `xp_updated_at`). A gold-only push leaves `xp_updated_at` alone; an xp push moves it forward. An unknown ID returns `pgx.ErrNoRows` |
+| Leaderboard (`leaderboard_test.go`) | Order: xp, then earlier `xp_updated_at`, then smaller `id` (Postgres compares UUIDs with `memcmp`, so Go uses `bytes.Compare`). Keyset paging with a page size of 2 over a three-way tie must exactly match one `LeaderboardTop` call, with no gaps and no duplicates |
+
+Timestamps for the tie cases are set directly with `UPDATE ... SET
+xp_updated_at`. The trigger is `BEFORE UPDATE OF xp`, so an update that only
+sets the timestamp isn't overwritten.
+
+**The paging test was checked by breaking the query on purpose.** Removing
+the `id > @id` tiebreak from `LeaderboardAfter` made it fail (6 of 7 rows,
+because the row after the page boundary in the tie was skipped). Changing it
+to `id >= @id` repeated the boundary row on every page until the loop's
+iteration cap stopped it.
 
 ## Leaderboard performance (00005 → 00007)
 
@@ -294,12 +321,8 @@ goose up
   read and discarded 19,001 rows (~19k buffers). With the bound, the plan
   shows `Index Cond: (xp <= ...)`, removes 2 rows, and touches 108 buffers.
   This is the `LeaderboardAfter` sqlc query (`LeaderboardTop` serves the
-  first page). Nothing calls it yet, because there's no `GET /leaderboard`
-  handler.
-- **More integration tests.** Only the case-insensitive username lookup is
-  covered so far. Still to come: duplicate names, length checks, level
-  thresholds, the `xp_updated_at` trigger, the ApplyStats overdraft, and
-  keyset paging across ties.
+  first page), covered by `TestLeaderboardPaging`. What's missing is the
+  `GET /leaderboard` handler that calls it.
 - **`CREATE INDEX CONCURRENTLY`.** On a live table the index would be built
   concurrently, so writes aren't blocked while it builds. That can't run inside
   a transaction, so it needs `-- +goose NO TRANSACTION`. It isn't needed at
