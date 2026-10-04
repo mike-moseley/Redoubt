@@ -107,3 +107,82 @@ func TestLeaderboardOrdering(t *testing.T) {
 		t.Fatalf("Expecting %v to be smaller than %v", lb[3].ID, lb[4].ID)
 	}
 }
+
+func TestLeaderboardPaging(t *testing.T) {
+	reset(t)
+	ctx := t.Context()
+	q := queries.New(pool)
+
+	acct1 := createAccount(t, "acct1")
+	acct2 := createAccount(t, "acct2")
+	acct3 := createAccount(t, "acct3")
+	acct4 := createAccount(t, "acct4")
+	acct5 := createAccount(t, "acct5")
+	acct6 := createAccount(t, "acct6")
+	acct7 := createAccount(t, "acct7")
+
+	_ = createCharacterWithXP(t, acct1, "char1", 100)
+	_ = createCharacterWithXP(t, acct2, "char2", 200)
+
+	// Three identical characters that are larger than our
+	// page size, boundary has to fall within a page.
+	// Ensures correct behavior over the leaderboard index
+	char3 := createCharacterWithXP(t, acct3, "char3", 300)
+	char4 := createCharacterWithXP(t, acct4, "char4", 300)
+	char5 := createCharacterWithXP(t, acct5, "char5", 300)
+
+	_ = createCharacterWithXP(t, acct6, "char6", 600)
+	_ = createCharacterWithXP(t, acct7, "char7", 700)
+
+	baseTime := time.Date(2020, time.April, 1, 1, 0, 0, 0, time.UTC)
+	tag, err := pool.Exec(ctx, "UPDATE characters SET xp_updated_at = $1 WHERE id = ANY($2)", baseTime, []uuid.UUID{char3.ID, char4.ID, char5.ID})
+	if err != nil {
+		t.Fatalf("Error updating row in characters table: %v", err)
+	}
+	if tag.RowsAffected() != 3 {
+		t.Fatalf("Expected number of rows not updated: have %d, want %d", tag.RowsAffected(), 3)
+	}
+
+	expected, err := q.LeaderboardTop(ctx, 100)
+	if err != nil {
+		t.Fatalf("Error getting top leaderboard results: %v", err)
+	}
+
+	have := make([]queries.Leaderboard,0, 10)
+	page, err := q.LeaderboardTop(ctx, 2)
+	if err != nil {
+		t.Fatalf("Error getting top leaderboard results: %v", err)
+	}
+
+	have = append(have, page...)
+
+	done := false
+	for range 10 {
+		last := page[len(page)-1]
+		page, err = q.LeaderboardAfter(ctx, queries.LeaderboardAfterParams{
+			Xp:          last.Xp,
+			XpUpdatedAt: last.XpUpdatedAt,
+			ID:          last.ID,
+			PageSize:    2,
+		})
+		if err != nil {
+			t.Fatalf("Error getting top leaderboard results: %v", err)
+		}
+		if len(page) == 0 {
+			done = true
+			break
+		}
+		have = append(have, page...)
+	}
+	if !done {
+		t.Fatalf("Did not finish querying leaderboard pages")
+	}
+	if len(have) != len(expected) {
+		t.Fatalf("Leaderboard slice mismatch: have %d, want %d", len(have), len(expected))
+	}
+	for i, e := range expected {
+		if e.ID != have[i].ID {
+			t.Fatalf("Leaderboard entry mismatch:\n  have %+v\n want %+v", have[i], e)
+		}
+	}
+}
