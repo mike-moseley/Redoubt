@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("Error talking to pgxpool: %v", err)
 	}
 
-	srv := accounts.NewServer(queries.New(pool))
+	srv := accounts.NewServer(queries.New(pool), pool)
 
 	httpServer := &http.Server{
 		Addr:    ":8080",
