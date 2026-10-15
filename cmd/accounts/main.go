@@ -18,6 +18,10 @@ func main() {
 	if dsn == "" {
 		log.Fatal("DATABASE_URL environment variable not set")
 	}
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET environment variable not set")
+	}
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {

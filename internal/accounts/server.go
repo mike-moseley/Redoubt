@@ -25,7 +25,9 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /readyz", s.handleReady)
+
 	mux.HandleFunc("POST /accounts", s.handleSignup)
+	mux.HandleFunc("POST /tokens", s.handleCreateToken)
 
 	return mux
 }

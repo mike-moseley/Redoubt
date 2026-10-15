@@ -23,7 +23,7 @@ func secret() []byte {
 	return []byte(secret)
 }
 
-func Issue(accountID uuid.UUID, username string, ttl time.Duration) (string, error) {
+func Issue(accountID uuid.UUID, username string, ttl time.Duration) (string, time.Time, error) {
 	claims := Claims{
 		AccountID: accountID,
 		Username:  username,
@@ -32,11 +32,11 @@ func Issue(accountID uuid.UUID, username string, ttl time.Duration) (string, err
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedString, err := token.SignedString(secret())
+	signedToken, err := token.SignedString(secret())
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
-	return signedString, nil
+	return signedToken, claims.ExpiresAt.Time, nil
 }
 
 func Verify(token string) (Claims, error) {
