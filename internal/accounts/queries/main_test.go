@@ -2,7 +2,6 @@ package queries_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -14,14 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mike-moseley/redoubt/internal/accounts/queries"
-	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/mike-moseley/redoubt/internal/testdb"
 )
 
 var pool *pgxpool.Pool
-
-const migrationsDir = "../../../sql/migrations/"
 
 const (
 	usernameUnique      = "accounts_username_lower_idx"
@@ -97,45 +92,15 @@ func expectPgError(t *testing.T, err error, code string, constraint string) {
 
 func run(m *testing.M) int {
 	ctx := context.Background()
-	ctr, err := postgres.Run(ctx, "postgres:18", postgres.WithDatabase("test_redoubt"), postgres.WithUsername("test"), postgres.WithPassword("test"), postgres.BasicWaitStrategies())
-	defer testcontainers.TerminateContainer(ctr)
+	var cleanup func()
+	var err error
 
+	pool, cleanup, err = testdb.Start(ctx)
 	if err != nil {
-		log.Printf("Error starting container: %v", err)
+		log.Printf("error setting up testing db: %v", err)
 		return 1
 	}
-
-	dsn, err := ctr.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		log.Printf("Error getting connection string: %v", err)
-		return 1
-	}
-
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		log.Printf("Error opening db: %v", err)
-		return 1
-	}
-	defer db.Close()
-
-	err = goose.SetDialect("postgres")
-	if err != nil {
-		log.Printf("Error setting goose dialect: %v", err)
-		return 1
-	}
-
-	err = goose.Up(db, migrationsDir)
-	if err != nil {
-		log.Printf("Error bringing up migrations: %v", err)
-		return 1
-	}
-
-	pool, err = pgxpool.New(ctx, dsn)
-	if err != nil {
-		log.Printf("Error opening pgx pool: %v", err)
-		return 1
-	}
-	defer pool.Close()
+	defer cleanup()
 
 	return m.Run()
 }
