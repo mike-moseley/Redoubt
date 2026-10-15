@@ -3,29 +3,29 @@ package core
 type EntityID uint64
 
 type Store struct {
-	LocalPosition   map[EntityID]Position
+	LocalPosition map[EntityID]Position
 	WorldPosition map[EntityID]Position
-	Renderable map[EntityID]Renderable
-	Name       map[EntityID]Name
-	NextID     EntityID
+	Renderable    map[EntityID]Renderable
+	Name          map[EntityID]Name
+	NextID        EntityID
 }
 
 func NewStore() Store {
-	return Store {
+	return Store{
 		LocalPosition: make(map[EntityID]Position),
 		WorldPosition: make(map[EntityID]Position),
-		Renderable: make(map[EntityID]Renderable),
-		Name: make(map[EntityID]Name),
+		Renderable:    make(map[EntityID]Renderable),
+		Name:          make(map[EntityID]Name),
 	}
 }
 
 type RenderableEntity struct {
 	Position Position
-	Render Renderable
+	Render   Renderable
 }
 
 type Pair[A, B any] struct {
-	First A
+	First  A
 	Second B
 }
 

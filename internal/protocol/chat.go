@@ -12,8 +12,8 @@ const (
 )
 
 type Chat struct {
-	Source uuid.UUID
-	SourceName string
+	Source      uuid.UUID
+	SourceName  string
 	Destination MessageDestination
-	Contents string
+	Contents    string
 }

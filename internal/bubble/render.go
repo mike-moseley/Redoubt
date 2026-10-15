@@ -11,7 +11,7 @@ func (m Model) renderGameView(gameviewHeight, gameviewWidth int, entities map[in
 	playerX := m.Snapshot.PlayerPos.X
 	playerY := m.Snapshot.PlayerPos.Y
 	str := strings.Builder{}
-	for vy := range gameviewHeight + 2{
+	for vy := range gameviewHeight + 2 {
 		for vx := range gameviewWidth {
 			mapX := int(playerX) + (vx - gameviewWidth/2)
 			mapY := int(playerY) + (vy - gameviewHeight/2)

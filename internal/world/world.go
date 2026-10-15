@@ -9,13 +9,13 @@ type WorldCell struct {
 }
 
 type WorldMap struct {
-	Map []WorldCell
-	Width uint8
+	Map    []WorldCell
+	Width  uint8
 	Height uint8
 }
 
 type LocalMap struct {
-	Map []core.TileType
-	Width uint8
+	Map    []core.TileType
+	Width  uint8
 	Height uint8
 }

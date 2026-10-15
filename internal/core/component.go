@@ -36,8 +36,8 @@ func (p Position) DistanceSquared(other Position) int {
 
 func (p Position) AddPosition(other Position) Position {
 	return Position{
-		X:	p.X + other.X,
-		Y:	p.Y + other.Y,
+		X: p.X + other.X,
+		Y: p.Y + other.Y,
 	}
 }
 

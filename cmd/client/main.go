@@ -27,8 +27,8 @@ func main() {
 		log.Printf("Error marshaling connect: %v", err)
 	}
 
-	clientEnv := protocol.ClientEnvelope {
-		Type: protocol.TypeConnect,
+	clientEnv := protocol.ClientEnvelope{
+		Type:    protocol.TypeConnect,
 		Payload: connectJson,
 	}
 

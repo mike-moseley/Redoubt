@@ -148,7 +148,7 @@ func TestLeaderboardPaging(t *testing.T) {
 		t.Fatalf("Error getting top leaderboard results: %v", err)
 	}
 
-	have := make([]queries.Leaderboard,0, 10)
+	have := make([]queries.Leaderboard, 0, 10)
 	page, err := q.LeaderboardTop(ctx, 2)
 	if err != nil {
 		t.Fatalf("Error getting top leaderboard results: %v", err)
