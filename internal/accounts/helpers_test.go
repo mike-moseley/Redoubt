@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -52,8 +53,12 @@ func doJSON(t *testing.T, method, path string, body any) *httptest.ResponseRecor
 			t.Fatalf("marshalling json failed: %v", err)
 		}
 	}
-	r := bytes.NewReader(b)
-	req := httptest.NewRequest(method, path, r)
+	return doRequest(t, method, path, bytes.NewReader(b))
+}
+
+func doRequest(t *testing.T, method, path string, body io.Reader) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, body)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	newServer(t).ServeHTTP(rec, req)
